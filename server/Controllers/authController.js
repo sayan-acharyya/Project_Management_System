@@ -4,7 +4,8 @@ import { User } from "../models/user.model.js";
 import bcrypt from "bcrypt";
 import { generateToken } from "../utills/generateToken.js";
 import { generateForgotPasswordEmailTemplate } from "../utills/Email_Templates.js";
-
+import { sendEmail } from "../services/emailService.js";
+import crypto from "crypto"
 
 //Register user
 export const registerUser = asyncHandler(async (req, res, next) => {
@@ -32,17 +33,17 @@ export const login = asyncHandler(async (req, res, next) => {
 
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
-        return next(new ErrorHandler("Invalid credentials", 401));
+        return next(new ErrorHandler("Invalid credentials ", 401));
     }
 
     // ✅ Role check
     if (user.role !== role) {
-        return next(new ErrorHandler("Invalid credentials", 401));
+        return next(new ErrorHandler("Invalid credentials ", 401));
     }
 
     const isPasswordMatched = await bcrypt.compare(password, user.password);
     if (!isPasswordMatched) {
-        return next(new ErrorHandler("Invalid credentials", 401));
+        return next(new ErrorHandler("Invalid credentials ", 401));
     }
 
     generateToken(user, 200, "Logged in successfully", res);
@@ -101,5 +102,31 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
 })
 
 export const resetPassword = asyncHandler(async (req, res, next) => {
+    const { token } = req.params;
+    const resetPasswordToken = crypto.createHash("sha256").update(token).digest("hex");
 
+    const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpire: { $gt: Date.now() }
+    })
+
+    if (!user) {
+        return next(new ErrorHandler("Invalid or expired password reset token", 400));
+    }
+
+    if (!req.body.password || !req.body.confirmPassword) {
+        return next(new ErrorHandler("Please provide all required feilds", 400));
+    }
+
+    if (req.body.password != req.body.confirmPassword) {
+        return next(new ErrorHandler("password and confirmPassword do not match", 400));
+    }
+      const hashedPassword = await bcrypt.hash( req.body.confirmPassword, 10);
+    user.password = hashedPassword;
+    user.resetPasswordExpire = undefined;
+    user.resetPasswordToken = undefined;
+
+    await user.save();
+    generateToken(user, 200, "Password reset successful", res);
+    
 })

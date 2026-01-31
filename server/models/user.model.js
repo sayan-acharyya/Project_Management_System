@@ -73,7 +73,7 @@ userSchema.methods.generateToken = function () {
     })
 }
 
-userSchema.method.getResetPasswordToken = function () {
+userSchema.methods.getResetPasswordToken = function () {
     const resetToken = crypto.randomBytes(20).toString("hex");
     this.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
