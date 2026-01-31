@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import mongoose from "mongoose";
+import mongoose, { Mongoose } from "mongoose";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { type } from "os";
@@ -67,7 +67,13 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
+userSchema.methods.generateToken = function () {
+    return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
+    })
+}
 
+export const User = mongoose.model("User", userSchema);
 
 
 
